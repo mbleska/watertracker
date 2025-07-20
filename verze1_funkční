@@ -1,0 +1,80 @@
+package com.example.watertracker
+
+import android.content.Context
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            WaterTrackerScreen(applicationContext)
+        }
+    }
+}
+
+@Composable
+fun WaterTrackerScreen(context: Context) {
+    val prefs = context.getSharedPreferences("water_prefs", Context.MODE_PRIVATE)
+    val today = LocalDate.now().format(DateTimeFormatter.ISO_DATE)
+
+    val storedDate = prefs.getString("last_date", "")
+    val initialIntake = if (storedDate == today) {
+        prefs.getInt("intake", 0)
+    } else {
+        0
+    }
+
+    var totalIntake by remember { mutableStateOf(initialIntake) }
+
+    // Uložit při každé změně
+    LaunchedEffect(totalIntake) {
+        prefs.edit()
+            .putInt("intake", totalIntake)
+            .putString("last_date", today)
+            .apply()
+    }
+
+    val dailyGoal = 2000
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(32.dp)) // ← přidá volné místo nahoře
+        Text("Denní cíl: $dailyGoal ml", fontSize = 20.sp)
+        Text("Vypito: $totalIntake ml", fontSize = 24.sp, fontWeight = FontWeight.Bold)
+
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Button(onClick = { totalIntake += 100 }) {
+                Text("+100 ml")
+            }
+            Button(onClick = { totalIntake += 250 }) {
+                Text("+250 ml")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Button(
+            onClick = { totalIntake = 0 },
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("Vynulovat", color = MaterialTheme.colorScheme.onError)
+        }
+    }
+}
