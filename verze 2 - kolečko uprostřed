@@ -1,0 +1,118 @@
+package com.example.watertracker
+
+import android.content.Context
+import android.os.Bundle
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+
+class MainActivity : ComponentActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContent {
+            WaterTrackerScreen(applicationContext)
+        }
+    }
+}
+
+@Composable
+fun WaterTrackerScreen(context: Context) {
+    // Načtení uložené hodnoty
+    val prefs = context.getSharedPreferences("water_prefs", Context.MODE_PRIVATE)
+    val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+
+    val storedDate = prefs.getString("last_date", "")
+    val initialIntake = if (storedDate == today) prefs.getInt("intake", 0) else 0
+
+    var totalIntake by remember { mutableStateOf(initialIntake) }
+
+    // Uložit při každé změně
+    LaunchedEffect(totalIntake) {
+        prefs.edit()
+            .putInt("intake", totalIntake)
+            .putString("last_date", today)
+            .apply()
+    }
+
+    val dailyGoal = 2000
+    MainScreenContent(
+        totalIntake = totalIntake,
+        dailyGoal = dailyGoal,
+        onAdd = { amount -> totalIntake += amount },
+        onReset = { totalIntake = 0 }
+    )
+}
+
+@Composable
+fun MainScreenContent(
+    totalIntake: Int,
+    dailyGoal: Int,
+    onAdd: (Int) -> Unit,
+    onReset: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = "Denní cíl: $dailyGoal ml",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        CircularProgressDisplay(totalIntake = totalIntake, dailyGoal = dailyGoal)
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(onClick = { onAdd(100) }) { Text("+100 ml") }
+            Button(onClick = { onAdd(250) }) { Text("+250 ml") }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onReset,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("Vynulovat", color = MaterialTheme.colorScheme.onError)
+        }
+    }
+}
+
+@Composable
+fun CircularProgressDisplay(totalIntake: Int, dailyGoal: Int) {
+    val progress = (totalIntake.toFloat() / dailyGoal).coerceIn(0f, 1f)
+
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.size(200.dp)
+    ) {
+        CircularProgressIndicator(
+            progress = progress,
+            strokeWidth = 12.dp,
+            modifier = Modifier.fillMaxSize()
+        )
+        Text(
+            text = "$totalIntake ml",
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
